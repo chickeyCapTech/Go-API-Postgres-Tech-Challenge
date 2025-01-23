@@ -23,13 +23,29 @@ import (
 // @BasePath					/api
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
-func AddRoutes(mux *http.ServeMux, logger *slog.Logger, usersService *services.UsersService, baseURL string) {
-	// Read a user
-	mux.Handle("GET /api/users/{id}", handlers.HandleReadUser(logger, usersService))
-	mux.Handle("GET /api/users", handlers.HandleListUsers(logger, usersService))
-	mux.Handle("POST /api/users", handlers.HandleCreateUser(logger, usersService))
-	mux.Handle("PUT /api/users/{id}", handlers.HandleUpdateUser(logger, usersService))
-	mux.Handle("DELETE /api/users/{id}", handlers.HandleDeleteUser(logger, usersService))
+func AddRoutes(mux *http.ServeMux, logger *slog.Logger, usersService *services.UsersService, blogsService *services.BlogsService, commentsService *services.CommentsService, baseURL string) {
+	// User endpoints
+	mux.Handle("GET /api/user/{id}", handlers.HandleReadUser(logger, usersService))
+	mux.Handle("GET /api/user", handlers.HandleListUsers(logger, usersService))
+	mux.Handle("POST /api/user", handlers.HandleCreateUser(logger, usersService))
+	mux.Handle("PUT /api/user/{id}", handlers.HandleUpdateUser(logger, usersService))
+	mux.Handle("DELETE /api/user/{id}", handlers.HandleDeleteUser(logger, usersService))
+
+	// Blog endpoints
+	mux.Handle("GET /api/blog/{id}", handlers.HandleReadBlog(logger, blogsService))
+	mux.Handle("GET /api/blog", handlers.HandleListBlogs(logger, blogsService))
+	mux.Handle("POST /api/blog", handlers.HandleCreateBlog(logger, blogsService))
+	mux.Handle("PUT /api/blog/{id}", handlers.HandleUpdateBlog(logger, blogsService))
+	mux.Handle("DELETE /api/blog/{id}", handlers.HandleDeleteBlog(logger, blogsService))
+
+	// Comment endpoints
+	mux.Handle("GET /api/comment", handlers.HandleListComments(logger, commentsService))
+	mux.Handle("POST /api/comment", handlers.HandleCreateComment(logger, commentsService))
+	mux.Handle("PUT /api/comment", handlers.HandleUpdateComment(logger, commentsService))
+	mux.Handle("DELETE /api/comment", handlers.HandleDeleteComment(logger, commentsService))
+
+	// health check
+	mux.Handle("GET /api/health", handlers.HandleHealthCheck(logger))
 
 	// swagger docs
 	mux.Handle(

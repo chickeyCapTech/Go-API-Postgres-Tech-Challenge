@@ -11,34 +11,34 @@ import (
 
 // blogReader represents a type capable of reading a blog from storage and
 // returning it or an error.
-type blogsReader interface {
+type blogsLister interface {
 	ListBlogs(ctx context.Context, title string) ([]models.Blog, error)
 }
 
 // listBlogsResponse represents the response for listing blogs.
 type listBlogsResponse struct {
-	Blogs []readBlogResponse
+	Blogs []BlogResponse
 }
 
 // @Summary		List Blogs
 // @Description	List All Blogs
-// @Tags			blogs
+// @Tags			blog
 // @Accept			json
 // @Produce		json
-// @Param title query string false "query param"
-// @Success		200	{array}		models.Blog
-// @Failure		400	{object}	string
-// @Failure		404	{object}	string
-// @Failure		500	{object}	string
-// @Router			/blogs  [GET]
-func HandleListBlogs(logger *slog.Logger, blogsReader blogsReader) http.Handler {
+// @Param			title	query		string	false	"query param"
+// @Success		200		{array}		models.Blog
+// @Failure		400		{object}	string
+// @Failure		404		{object}	string
+// @Failure		500		{object}	string
+// @Router			/blog  [GET]
+func HandleListBlogs(logger *slog.Logger, blogsLister blogsLister) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		title := r.URL.Query().Get("title")
 
 		// Read the blog
-		blogs, err := blogsReader.ListBlogs(ctx, title)
+		blogs, err := blogsLister.ListBlogs(ctx, title)
 		if err != nil {
 			logger.ErrorContext(
 				r.Context(),
@@ -52,11 +52,11 @@ func HandleListBlogs(logger *slog.Logger, blogsReader blogsReader) http.Handler 
 
 		// Convert our models.Blog domain model into a response model.
 		response := listBlogsResponse{
-			Blogs: []readBlogResponse{},
+			Blogs: []BlogResponse{},
 		}
 
 		for _, blog := range blogs {
-			newBlog := readBlogResponse{
+			newBlog := BlogResponse{
 				ID:          blog.ID,
 				AuthorID:    blog.AuthorID,
 				Title:       blog.Title,

@@ -72,6 +72,12 @@ func run(ctx context.Context) error {
 	// Create a new users service
 	usersService := services.NewUsersService(logger, db)
 
+	// Create a new blogs service
+	blogsService := services.NewBlogsService(logger, db)
+
+	// Create a new comments service
+	commentsService := services.NewCommentsService(logger, db)
+
 	// Create a serve mux to act as our route multiplexer
 	mux := http.NewServeMux()
 
@@ -80,6 +86,8 @@ func run(ctx context.Context) error {
 		mux,
 		logger,
 		usersService,
+		blogsService,
+		commentsService,
 		fmt.Sprintf("http://%s:%s", cfg.Host, cfg.Port),
 	)
 	// Wrap the mux with middleware
@@ -87,7 +95,7 @@ func run(ctx context.Context) error {
 	wrappedMux := middleware.Logger(logger)(mux)
 
 	// IS THIS CORRECT WAY TO CALL RECOver
-	defer middleware.Recover(logger)(wrappedMux)
+	wrappedMux = middleware.Recover(logger)(wrappedMux)
 
 	// Create a new http server with our mux as the handler
 	// Create a new http server with our mux as the handler
@@ -142,5 +150,4 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
-	return nil
 }

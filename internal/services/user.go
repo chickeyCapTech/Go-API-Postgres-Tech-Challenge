@@ -30,24 +30,17 @@ func NewUsersService(logger *slog.Logger, db *sql.DB) *UsersService {
 func (s *UsersService) CreateUser(ctx context.Context, user models.User) (models.User, error) {
 	s.logger.DebugContext(ctx, "Creating user", "name", user.Name)
 
-	result, err := s.db.ExecContext(
+	row := s.db.QueryRowContext(
 		ctx,
 		`
-		INSERT INTO users (name, email, password) VALUE ($1::string, $2::string, $3::string)
+		INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id
 		`,
 		user.Name,
 		user.Email,
 		user.Password,
 	)
 
-	if err != nil {
-		return models.User{}, fmt.Errorf(
-			"[in services.UsersService.CreateUser] failed to create user: %w",
-			err,
-		)
-	}
-
-	id, err := result.LastInsertId()
+	err := row.Scan(&user.ID)
 
 	if err != nil {
 		return models.User{}, fmt.Errorf(
@@ -55,8 +48,6 @@ func (s *UsersService) CreateUser(ctx context.Context, user models.User) (models
 			err,
 		)
 	}
-
-	user.ID = uint(id)
 
 	return user, nil
 }
@@ -122,15 +113,16 @@ func (s *UsersService) UpdateUser(ctx context.Context, id uint64, patch models.U
 			err,
 		)
 	}
-
+	patch.ID = uint(id)
 	return patch, nil
 }
 
 // DeleteUser attempts to delete the user with the provided id. An error is
 // returned if the delete fails.
 func (s *UsersService) DeleteUser(ctx context.Context, id uint64) error {
-	s.logger.DebugContext(ctx, "Creating user", "id", id)
+	s.logger.DebugContext(ctx, "Deleting user", "id", id)
 
+	// Delete user from user table
 	_, err := s.db.ExecContext(
 		ctx,
 		`
@@ -146,13 +138,46 @@ func (s *UsersService) DeleteUser(ctx context.Context, id uint64) error {
 		)
 	}
 
+	// Delete blogs with authodId = id
+	_, err = s.db.ExecContext(
+		ctx,
+		`
+		DELETE FROM blogs WHERE author_id = $1::int
+		`,
+		id,
+	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"[in services.UsersService.DeleteUser] failed to delete blogs: %w",
+			err,
+		)
+	}
+
+	//Delete comments where userId = id
+
+	_, err = s.db.ExecContext(
+		ctx,
+		`
+		DELETE FROM comments WHERE user_id = $1::int
+		`,
+		id,
+	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"[in services.UsersService.DeleteUser] failed to delete comments: %w",
+			err,
+		)
+	}
+
 	return nil
 }
 
 // ListUsers attempts to list all users in the database. A slice of models.User
 // or an error is returned.
 // WHY DO WE NEED ID?
-func (s *UsersService) ListUsers(ctx context.Context) ([]models.User, error) {
+func (s *UsersService) ListUsers(ctx context.Context, name string) ([]models.User, error) {
 	s.logger.DebugContext(ctx, "Listing users")
 
 	rows, err := s.db.QueryContext(
@@ -165,6 +190,13 @@ func (s *UsersService) ListUsers(ctx context.Context) ([]models.User, error) {
 		FROM users
         `,
 	)
+
+	if err != nil {
+		return []models.User{}, fmt.Errorf(
+			"[in services.UsersService.ListUser] failed to read users: %w",
+			err,
+		)
+	}
 
 	var users []models.User
 
@@ -179,7 +211,10 @@ func (s *UsersService) ListUsers(ctx context.Context) ([]models.User, error) {
 				err,
 			)
 		}
-		users = append(users, user)
+
+		if name == "" || user.Name == name {
+			users = append(users, user)
+		}
 	}
 
 	if err = rows.Err(); err != nil {

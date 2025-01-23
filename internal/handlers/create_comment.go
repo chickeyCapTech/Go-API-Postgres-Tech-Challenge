@@ -10,29 +10,29 @@ import (
 	"github.com/chickey/blog/internal/models"
 )
 
-// userCreator represents a type capable of reading a user from storage and
+// commentCreator represents a type capable of reading a comment from storage and
 // returning it or an error.
-type userCreator interface {
-	CreateUser(ctx context.Context, user models.User) (models.User, error)
+type commentCreator interface {
+	CreateComment(ctx context.Context, comment models.Comment) (models.Comment, error)
 }
 
-// @Summary		Create User
-// @Description	Creates a User
-// @Tags			user
+// @Summary		Create Comment
+// @Description	Creates a Comment
+// @Tags			comment
 // @Accept			json
 // @Produce		json
-// @Param			request	body		UserRequest	true	"User to Create"
+// @Param			request	body		CommentRequest	true	"Comment to Create"
 // @Success		200		{object}	uint
 // @Failure		400		{object}	string
 // @Failure		404		{object}	string
 // @Failure		500		{object}	string
-// @Router			/user  [POST]
-func HandleCreateUser(logger *slog.Logger, userCreator userCreator) http.Handler {
+// @Router			/comment  [POST]
+func HandleCreateComment(logger *slog.Logger, commentCreator commentCreator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		// Request validation
-		request, problems, err := decodeValid[*UserRequest](r)
+		request, problems, err := decodeValid[*CommentRequest](r)
 
 		if err != nil && len(problems) == 0 {
 			logger.ErrorContext(
@@ -50,18 +50,17 @@ func HandleCreateUser(logger *slog.Logger, userCreator userCreator) http.Handler
 			)
 		}
 
-		modelRequest := models.User{
-			Name:     request.Name,
-			Email:    request.Email,
-			Password: request.Password,
+		modelRequest := models.Comment{
+			UserID:  request.UserID,
+			BlogID:  request.BlogID,
+			Message: request.Message,
 		}
-
-		// Read the user
-		user, err := userCreator.CreateUser(ctx, modelRequest)
+		// Read the comment
+		comment, err := commentCreator.CreateComment(ctx, modelRequest)
 		if err != nil {
 			logger.ErrorContext(
 				r.Context(),
-				"failed to create user",
+				"failed to create comment",
 				slog.String("error", err.Error()),
 			)
 
@@ -69,12 +68,12 @@ func HandleCreateUser(logger *slog.Logger, userCreator userCreator) http.Handler
 			return
 		}
 
-		// Convert our models.User domain model into a response model.
-		response := UserResponse{
-			ID:       user.ID,
-			Name:     user.Name,
-			Email:    user.Email,
-			Password: user.Password,
+		// Convert our models.Comment domain model into a response model.
+		response := CommentResponse{
+			UserID:      comment.UserID,
+			BlogID:      comment.BlogID,
+			Message:     comment.Message,
+			CreatedDate: comment.CreatedDate,
 		}
 
 		// Encode the response model as JSON

@@ -6,32 +6,51 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/chickey/blog/internal/models"
 )
 
-// blogCreator represents a type capable of reading a blog from storage and
+// blogUpdater represents a type capable of updating a blog and
 // returning it or an error.
-type blogCreator interface {
-	CreateBlog(ctx context.Context, blog models.Blog) (models.Blog, error)
+type blogUpdater interface {
+	UpdateBlog(ctx context.Context, id uint64, patch models.Blog) (models.Blog, error)
 }
 
-//	@Summary		Create Blog
-//	@Description	Creates a Blog
+//	@Summary		Update Blog
+//	@Description	Update Blog by ID
 //	@Tags			blog
 //	@Accept			json
 //	@Produce		json
+//	@Param			id		path		string		true	"Blog ID"
 //	@Param			request	body		BlogRequest	true	"Blog to Create"
-//	@Success		200		{object}	uint
+//	@Success		200		{object}	models.Blog
 //	@Failure		400		{object}	string
 //	@Failure		404		{object}	string
 //	@Failure		500		{object}	string
-//	@Router			/blog  [POST]
-func HandleCreateBlog(logger *slog.Logger, blogCreator blogCreator) http.Handler {
+//	@Router			/blog/{id}  [PUT]
+func HandleUpdateBlog(logger *slog.Logger, blogUpdater blogUpdater) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		// Request validation
+		// Read id from path parameters
+		idStr := r.PathValue("id")
+
+		// Convert the ID from string to int
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			logger.ErrorContext(
+				r.Context(),
+				"failed to parse id from url",
+				slog.String("id", idStr),
+				slog.String("error", err.Error()),
+			)
+
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+
+		// Read request body
 		request, problems, err := decodeValid[*BlogRequest](r)
 
 		if err != nil && len(problems) == 0 {
@@ -46,7 +65,7 @@ func HandleCreateBlog(logger *slog.Logger, blogCreator blogCreator) http.Handler
 			logger.ErrorContext(
 				r.Context(),
 				"Validation error",
-				slog.String("Validation failures:", fmt.Sprintf("%v", problems)),
+				slog.String("Validation errors: ", fmt.Sprintf("%#v", problems)),
 			)
 		}
 
@@ -55,12 +74,13 @@ func HandleCreateBlog(logger *slog.Logger, blogCreator blogCreator) http.Handler
 			Title:    request.Title,
 			Score:    request.Score,
 		}
-		// Read the blog
-		blog, err := blogCreator.CreateBlog(ctx, modelRequest)
+
+		// Update the blog
+		blog, err := blogUpdater.UpdateBlog(ctx, uint64(id), modelRequest)
 		if err != nil {
 			logger.ErrorContext(
 				r.Context(),
-				"failed to create blog",
+				"failed to update blog",
 				slog.String("error", err.Error()),
 			)
 

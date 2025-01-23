@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -16,26 +17,18 @@ type userUpdater interface {
 	UpdateUser(ctx context.Context, id uint64, patch models.User) (models.User, error)
 }
 
-// readUserResponse represents the response for reading a user.
-type updateUserResponse struct {
-	ID       uint   `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// @Summary		Update User
-// @Description	Update User by ID
-// @Tags			users
-// @Accept			json
-// @Produce		json
-// @Param			id	path		string	true	"User ID"
-// @Param			request	body		createUserRequest	true	"User to Create"
-// @Success		200	{object}	models.User
-// @Failure		400	{object}	string
-// @Failure		404	{object}	string
-// @Failure		500	{object}	string
-// @Router			/users/{id}  [PUT]
+//	@Summary		Update User
+//	@Description	Update User by ID
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string		true	"User ID"
+//	@Param			request	body		UserRequest	true	"User to Create"
+//	@Success		200		{object}	models.User
+//	@Failure		400		{object}	string
+//	@Failure		404		{object}	string
+//	@Failure		500		{object}	string
+//	@Router			/user/{id}  [PUT]
 func HandleUpdateUser(logger *slog.Logger, userUpdater userUpdater) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -57,9 +50,10 @@ func HandleUpdateUser(logger *slog.Logger, userUpdater userUpdater) http.Handler
 			return
 		}
 
-		// Read request body
-		var request models.User
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		// Request validation
+		request, problems, err := decodeValid[*UserRequest](r)
+
+		if err != nil && len(problems) == 0 {
 			logger.ErrorContext(
 				r.Context(),
 				"failed to decode request",
@@ -67,9 +61,22 @@ func HandleUpdateUser(logger *slog.Logger, userUpdater userUpdater) http.Handler
 
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
+		if len(problems) > 0 {
+			logger.ErrorContext(
+				r.Context(),
+				"Validation error",
+				slog.String("Validation errors: ", fmt.Sprintf("%#v", problems)),
+			)
+		}
+
+		modelRequest := models.User{
+			Name:     request.Name,
+			Email:    request.Email,
+			Password: request.Password,
+		}
 
 		// Update the user
-		user, err := userUpdater.UpdateUser(ctx, uint64(id), request)
+		user, err := userUpdater.UpdateUser(ctx, uint64(id), modelRequest)
 		if err != nil {
 			logger.ErrorContext(
 				r.Context(),
@@ -82,7 +89,7 @@ func HandleUpdateUser(logger *slog.Logger, userUpdater userUpdater) http.Handler
 		}
 
 		// Convert our models.User domain model into a response model.
-		response := updateUserResponse{
+		response := UserResponse{
 			ID:       user.ID,
 			Name:     user.Name,
 			Email:    user.Email,

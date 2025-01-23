@@ -25,41 +25,58 @@ func NewBlogsService(logger *slog.Logger, db *sql.DB) *BlogsService {
 	}
 }
 
-// // CreateBlog attempts to create the provided blog, returning a fully hydrated
-// // models.Blog or an error.
-// func (s *BlogsService) CreateBlog(ctx context.Context, blog models.Blog) (models.Blog, error) {
-// 	s.logger.DebugContext(ctx, "Creating blog", "name", blog.Name)
+// CreateBlog attempts to create the provided blog, returning a fully hydrated
+// models.Blog or an error.
+func (s *BlogsService) CreateBlog(ctx context.Context, blog models.Blog) (models.Blog, error) {
+	s.logger.DebugContext(ctx, "Creating blog", "name", blog.Title)
 
-// 	result, err := s.db.ExecContext(
-// 		ctx,
-// 		`
-// 		INSERT INTO blogs (name, email, password) VALUE ($1::string, $2::string, $3::string)
-// 		`,
-// 		blog.Name,
-// 		blog.Email,
-// 		blog.Password,
-// 	)
+	//validate authod_id exists in user table
+	author := s.db.QueryRowContext(
+		ctx,
+		`
+			SELECT id,
+				   name,
+				   email,
+				   password
+			FROM users
+			WHERE id = $1::int
+			`,
+		blog.AuthorID,
+	)
 
-// 	if err != nil {
-// 		return models.Blog{}, fmt.Errorf(
-// 			"[in services.BlogsService.CreateBlog] failed to create blog: %w",
-// 			err,
-// 		)
-// 	}
+	var user models.User
 
-// 	id, err := result.LastInsertId()
+	err := author.Scan(&user.ID, &user.Name, &user.Email, &user.Password)
 
-// 	if err != nil {
-// 		return models.Blog{}, fmt.Errorf(
-// 			"[in services.BlogsService.CreateBlog] failed to create blog: %w",
-// 			err,
-// 		)
-// 	}
+	if err != nil {
+		return models.Blog{}, fmt.Errorf(
+			"[in services.BlogsService.UpdateBlog] failed to update blog: %w",
+			err,
+		)
+	}
 
-// 	blog.ID = uint(id)
+	// Create new blog entry in blog table
+	result := s.db.QueryRowContext(
+		ctx,
+		`
+		INSERT INTO blogs (author_id, title, score) VALUES ($1, $2, $3) RETURNING id, created_date
+		`,
+		blog.AuthorID,
+		blog.Title,
+		blog.Score,
+	)
 
-// 	return blog, nil
-// }
+	err = result.Scan(&blog.ID, &blog.CreatedDate)
+
+	if err != nil {
+		return models.Blog{}, fmt.Errorf(
+			"[in services.BlogsService.CreateBlog] failed to create blog: %w",
+			err,
+		)
+	}
+
+	return blog, nil
+}
 
 // ReadBlog attempts to read a blog from the database using the provided id. A
 // fully hydrated models.Blog or error is returned.
@@ -98,57 +115,101 @@ func (s *BlogsService) ReadBlog(ctx context.Context, id uint64) (models.Blog, er
 	return blog, nil
 }
 
-// // UpdateBlog attempts to perform an update of the blog with the provided id,
-// // updating, it to reflect the properties on the provided patch object. A
-// // models.Blog or an error.
-// func (s *BlogsService) UpdateBlog(ctx context.Context, id uint64, patch models.Blog) (models.Blog, error) {
-// 	s.logger.DebugContext(ctx, "Updating blog", "id", id)
+// UpdateBlog attempts to perform an update of the blog with the provided id,
+// updating, it to reflect the properties on the provided patch object. A
+// models.Blog or an error.
+func (s *BlogsService) UpdateBlog(ctx context.Context, id uint64, patch models.Blog) (models.Blog, error) {
+	s.logger.DebugContext(ctx, "Updating blog", "id", id)
 
-// 	_, err := s.db.ExecContext(
-// 		ctx,
-// 		`
-// 		UPDATE blogs
-// 		SET name = $1, email = $2, password = $3
-// 		WHERE id = $4
-// 		`,
-// 		patch.Name,
-// 		patch.Email,
-// 		patch.Password,
-// 		id,
-// 	)
+	//validate authod_id exists in user table
+	author := s.db.QueryRowContext(
+		ctx,
+		`
+		SELECT 1
+		FROM users
+		WHERE id = $1::int
+        `,
+		id,
+	)
 
-// 	if err != nil {
-// 		return models.Blog{}, fmt.Errorf(
-// 			"[in services.BlogsService.UpdateBlog] failed to update blog: %w",
-// 			err,
-// 		)
-// 	}
+	var exists int
 
-// 	return patch, nil
-// }
+	err := author.Scan(&exists)
 
-// // DeleteBlog attempts to delete the blog with the provided id. An error is
-// // returned if the delete fails.
-// func (s *BlogsService) DeleteBlog(ctx context.Context, id uint64) error {
-// 	s.logger.DebugContext(ctx, "Creating blog", "id", id)
+	if err != nil {
+		return models.Blog{}, fmt.Errorf(
+			"[in services.BlogsService.UpdateBlog] failed to update blog: %w",
+			err,
+		)
+	}
 
-// 	_, err := s.db.ExecContext(
-// 		ctx,
-// 		`
-// 		DELETE FROM blogs WHERE id = $1::int
-// 		`,
-// 		id,
-// 	)
+	// should we be able to update created date?
+	row := s.db.QueryRowContext(
+		ctx,
+		`
+		UPDATE blogs
+		SET author_id = $1, title = $2, score = $3
+		WHERE id = $4
+		RETURNING created_date
+		`,
+		patch.AuthorID,
+		patch.Title,
+		patch.Score,
+		id,
+	)
+	err = row.Scan(&patch.CreatedDate)
 
-// 	if err != nil {
-// 		return fmt.Errorf(
-// 			"[in services.BlogsService.DeleteBlog] failed to delete blog: %w",
-// 			err,
-// 		)
-// 	}
+	if err != nil {
+		return models.Blog{}, fmt.Errorf(
+			"[in services.BlogsService.UpdateBlog] failed to update blog: %w",
+			err,
+		)
+	}
+	patch.ID = uint(id)
+	return patch, nil
+}
 
-// 	return nil
-// }
+// DeleteBlog attempts to delete the blog with the provided id. An error is
+// returned if the delete fails.
+func (s *BlogsService) DeleteBlog(ctx context.Context, id uint64) error {
+	s.logger.DebugContext(ctx, "Deleting blog", "id", id)
+
+	//DB transaction
+
+	//DELETE from blog from blogs
+	_, err := s.db.ExecContext(
+		ctx,
+		`
+		DELETE FROM blogs WHERE id = $1::int
+		`,
+		id,
+	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"[in services.BlogsService.DeleteBlog] failed to delete blog: %w",
+			err,
+		)
+	}
+
+	//DELETE all comments with blog_id of deleted blog
+	_, err = s.db.ExecContext(
+		ctx,
+		`
+		DELETE FROM comments WHERE blog_id = $1::int
+		`,
+		id,
+	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"[in services.BlogsService.DeleteBlog] failed to delete comments of deleted blog: %w",
+			err,
+		)
+	}
+
+	return nil
+}
 
 // ListBlogs attempts to list all blogs in the database. A slice of models.Blog
 // or an error is returned.
@@ -159,13 +220,17 @@ func (s *BlogsService) ListBlogs(ctx context.Context, title string) ([]models.Bl
 	rows, err := s.db.QueryContext(
 		ctx,
 		`
-		SELECT id,
-		       name,
-		       email,
-		       password
+		SELECT id, author_id, title, score, created_date
 		FROM blogs
         `,
 	)
+
+	if err != nil {
+		return []models.Blog{}, fmt.Errorf(
+			"[in services.CommentsService.ListComment] failed to read blogs: %w",
+			err,
+		)
+	}
 
 	var blogs []models.Blog
 
@@ -180,7 +245,7 @@ func (s *BlogsService) ListBlogs(ctx context.Context, title string) ([]models.Bl
 				err,
 			)
 		}
-		if title == "" || blog.Title == title {
+		if len(title) == 0 || blog.Title == title {
 			blogs = append(blogs, blog)
 		}
 

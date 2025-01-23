@@ -1,15 +1,60 @@
 basePath: /api
 definitions:
-  handlers.createUserRequest:
+  handlers.BlogRequest:
+    properties:
+      authorid:
+        type: integer
+      score:
+        type: number
+      title:
+        type: string
+    type: object
+  handlers.CommentRequest:
+    properties:
+      blogID:
+        type: integer
+      message:
+        type: string
+      userID:
+        type: integer
+    type: object
+  handlers.UserRequest:
     properties:
       email:
         type: string
-      id:
-        type: integer
       name:
         type: string
       password:
         type: string
+    type: object
+  handlers.healthResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  models.Blog:
+    properties:
+      authorID:
+        type: integer
+      createdDate:
+        type: string
+      id:
+        type: integer
+      score:
+        type: number
+      title:
+        type: string
+    type: object
+  models.Comment:
+    properties:
+      blogID:
+        type: integer
+      createdDate:
+        type: string
+      message:
+        type: string
+      userID:
+        type: integer
     type: object
   models.User:
     properties:
@@ -39,11 +84,344 @@ info:
   title: Blog Service API
   version: "1.0"
 paths:
-  /users:
+  /blog:
+    get:
+      consumes:
+      - application/json
+      description: List All Blogs
+      parameters:
+      - description: query param
+        in: query
+        name: title
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Blog'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: List Blogs
+      tags:
+      - blog
+    post:
+      consumes:
+      - application/json
+      description: Creates a Blog
+      parameters:
+      - description: Blog to Create
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BlogRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Create Blog
+      tags:
+      - blog
+  /blog/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete Blog by ID
+      parameters:
+      - description: Blog ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Delete Blog
+      tags:
+      - blog
+    get:
+      consumes:
+      - application/json
+      description: Read Blog by ID
+      parameters:
+      - description: Blog Id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Blog'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Read Blog
+      tags:
+      - blog
+    put:
+      consumes:
+      - application/json
+      description: Update Blog by ID
+      parameters:
+      - description: Blog ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Blog to Create
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BlogRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Blog'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Update Blog
+      tags:
+      - blog
+  /comment:
+    delete:
+      consumes:
+      - application/json
+      description: Delete Comment by ID
+      parameters:
+      - description: Author Id
+        in: query
+        name: author_id
+        type: string
+      - description: Blog Id
+        in: query
+        name: blog_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Delete Comment
+      tags:
+      - comment
+    get:
+      consumes:
+      - application/json
+      description: List All Comments
+      parameters:
+      - description: Author Id
+        in: query
+        name: author_id
+        type: string
+      - description: Blog Id
+        in: query
+        name: blog_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Comment'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: List Comments
+      tags:
+      - comment
+    post:
+      consumes:
+      - application/json
+      description: Creates a Comment
+      parameters:
+      - description: Comment to Create
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Create Comment
+      tags:
+      - comment
+    put:
+      consumes:
+      - application/json
+      description: Update Comment by ID
+      parameters:
+      - description: Author Id
+        in: query
+        name: author_id
+        type: string
+      - description: Blog Id
+        in: query
+        name: blog_id
+        type: string
+      - description: Blog to Create
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Comment'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Update Comment
+      tags:
+      - comment
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Health Check endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.healthResponse'
+      summary: Health Check
+      tags:
+      - health
+  /user:
     get:
       consumes:
       - application/json
       description: List All Users
+      parameters:
+      - description: query param
+        in: query
+        name: name
+        type: string
       produces:
       - application/json
       responses:
@@ -73,12 +451,12 @@ paths:
       - application/json
       description: Creates a User
       parameters:
-      - description: user to Create
+      - description: User to Create
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.createUserRequest'
+          $ref: '#/definitions/handlers.UserRequest'
       produces:
       - application/json
       responses:
@@ -100,8 +478,8 @@ paths:
             type: string
       summary: Create User
       tags:
-      - users
-  /users/{id}:
+      - user
+  /user/{id}:
     delete:
       consumes:
       - application/json
@@ -131,7 +509,7 @@ paths:
             type: string
       summary: Delete User
       tags:
-      - users
+      - user
     get:
       consumes:
       - application/json
@@ -163,7 +541,7 @@ paths:
             type: string
       summary: Read User
       tags:
-      - users
+      - user
     put:
       consumes:
       - application/json
@@ -174,6 +552,12 @@ paths:
         name: id
         required: true
         type: string
+      - description: User to Create
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UserRequest'
       produces:
       - application/json
       responses:
@@ -195,5 +579,5 @@ paths:
             type: string
       summary: Update User
       tags:
-      - users
+      - user
 swagger: "2.0"

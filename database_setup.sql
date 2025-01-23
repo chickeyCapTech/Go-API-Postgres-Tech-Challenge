@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS "users";
-DROP TABLE IF EXISTS blogs;
+DROP TABLE IF EXISTS "blogs";
 DROP TABLE IF EXISTS "comments";
 
 -- Create user table
@@ -16,7 +16,7 @@ CREATE TABLE "blogs" (
     author_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     score REAL NOT NULL,
-    created_date TIMESTAMP NOT NULL
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create comment table
@@ -24,7 +24,7 @@ CREATE TABLE "comments" (
     user_id BIGSERIAL NOT NULL,
     blog_id BIGSERIAL NOT NULL,
     message TEXT NOT NULL,
-    created_date TIMESTAMP NOT NULL,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, blog_id)
 );
 

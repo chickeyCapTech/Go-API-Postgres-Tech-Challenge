@@ -10,22 +10,20 @@ import (
 func Recover(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if rc := recover(); rc != nil {
+			defer func() {
+				if rc := recover(); rc != nil {
 
-				wrapped := &wrappedWriter{
-					ResponseWriter: w,
-					statusCode:     500,
+					logger.InfoContext(
+						r.Context(),
+						"panic recovered",
+						slog.Any("error", rc),
+						slog.Int("status", 500),
+					)
+
+					w.WriteHeader(500)
 				}
-
-				next.ServeHTTP(wrapped, r)
-
-				logger.InfoContext(
-					r.Context(),
-					"panic recovered",
-					slog.Any("error", rc),
-					slog.Int("status", wrapped.statusCode),
-				)
-			}
+			}()
+			next.ServeHTTP(w, r)
 
 		})
 	}
