@@ -42,6 +42,14 @@ check-coverage:
 view-coverage:
 	@open -a "Google Chrome" file://$$(PWD)/coverage.html
 
+.PHONY: mock-gen
+mock-gen:
+	@$(MAKE) LOG MSG_TYPE=info LOG_MESSAGE="Generating mocks..."
+	@$(MAKE) LOG MSG_TYPE=debug LOG_MESSAGE="Delete existing mocks"
+	@find ./internal -d | grep ^.*mock$$ | xargs rm -rf
+	@mockery
+	@$(MAKE) LOG MSG_TYPE=success LOG_MESSAGE="Mocks generated"
+
 LOG:
 	@if [ "$(MSG_TYPE)" = "debug" ]; then \
 		echo -e "\033[0;37m$(LOG_MESSAGE)\033[0m"; \
